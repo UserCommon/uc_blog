@@ -1,5 +1,6 @@
 use axum::ServiceExt;
 use axum::{routing::get, Router};
+use sqlx::sqlite::SqlitePool;
 mod handlers;
 use handlers::*;
 
