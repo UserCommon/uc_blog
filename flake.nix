@@ -28,9 +28,18 @@
           pkgs = import nixpkgs {
             inherit system overlays;
           };
+          inherit (pkgs) lib;
+
           rustToolchain = pkgs.pkgsBuildHost.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
           craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
-          src = craneLib.cleanCargoSource ./.;
+
+          sqlFilter = path: _type: null != builtins.match ".*sql$" path;
+          sqlOrCargo = path: type: (sqlFilter path type) || (craneLib.filterCargoSources path type);
+
+          src = lib.cleanSourceWith {
+            src = craneLib.path ./.; # The original, unfiltered source
+            filter = sqlOrCargo;
+          };
           nativeBuildInputs = with pkgs;
             [ rustToolchain cargo-watch pkg-config sqlx-cli ];
           buildInputs = with pkgs; [ openssl sqlite ];
@@ -53,18 +62,35 @@
             '';
           });
 
+          dockerImage = pkgs.dockerTools.buildImage {
+            name="uc_blog";
+            tag="latest";
+            copyToRoot = [ bin ];
+            config = {
+              Cmd = [ "${bin}/bin/uc_blog"];
+              Volumes = {"./db/articles.sqlite3" = {};};
+            };
+          };
+
         in
         with pkgs;
         {
           packages = {
-            inherit bin;
+            inherit bin dockerImage;
             default = bin;
           };
+          defaultPackage = dockerImage;
           devShells.default = craneLib.devShell {
             inputsFrom = [ bin ];
+            packages = [
+                pkgs.sqlx-cli
+            ];
+
 
             shellHook = ''
               export DATABASE_URL=sqlite:./db/articles.sqlite3
+              sqlx database create
+              sqlx migrate run
 
               echo "Hey! <3"
               echo "this is development shell for my blog!"
