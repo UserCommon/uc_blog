@@ -1,0 +1,12 @@
+version: "3.8"
+services:
+  backend:
+    image: backend
+    build: ./backend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=sqlite:./app/db/articles.sqlite3
+    volumes:
+      - ./backend/db:/app/db/

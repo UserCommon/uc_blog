@@ -1,5 +1,5 @@
 create table articles (
-    id serial integer primary key,
+    id serial integer,
     title text not null,
     content text not null,
     author text not null,
