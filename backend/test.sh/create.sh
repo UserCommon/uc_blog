@@ -1,3 +1,4 @@
-curl -X POST -v localhost:3000/api/create \
-	--header 'Content-Type: application/json' \
-	--data '{"title": "Penis", "content": "Chlen", "author": "zalupa"}'
+
+(echo -n '{"title": "Writing hello world in rust!", "content": "'; base64 hello_world.tar.gz; echo '"}') |
+curl -H 'Content-Type: application/json' \
+	-d @- localhost:3000/api/create

@@ -13,6 +13,9 @@ pkgs.mkShell {
     ];
 
     shellHook = ''
-        Hello!
+        echo "<3"
+        set -a
+        source backend/.env
+        set +a
     '';
 }

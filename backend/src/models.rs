@@ -1,27 +1,36 @@
-use chrono::{NaiveDate, NaiveDateTime};
+use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
+/// Content is base64 binary
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateArticle {
     pub title: String,
     pub content: String,
-    pub author: String,
 }
 
+
+/// Content is base64 binary
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateArticle {
     pub id: i64,
-    pub title: Option<String>,
-    pub content: Option<String>,
+    pub title: String,
+    pub content: Option<String>
 }
 
+/// Content is url
 #[derive(Serialize, Deserialize, Debug, FromRow)]
 pub struct Article {
     pub id: i64,
     pub title: String,
     pub content: String,
-    pub author: String,
+    pub created_at: NaiveDateTime,
+}
+
+#[derive(Serialize, Deserialize, Debug, FromRow)]
+pub struct ArticleScheme {
+    pub id: i64,
+    pub title: String,
     pub created_at: NaiveDateTime,
 }
 
