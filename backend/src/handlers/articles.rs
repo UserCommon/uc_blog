@@ -2,17 +2,18 @@
 
 use crate::{
     models::{
-        Article, ArticleListPagination, CreateArticle, ObjectById, ObjectByTitle, UpdateArticle,
+        Article, ArticleListPagination, CreateArticle, ObjectById, ObjectByTitle, UpdateArticle, UploadArticleRequest, UpdateArticleRequest,
     },
     AppState,
 };
 
+use axum::body::{ Bytes, to_bytes };
 use async_compression::tokio::bufread::GzipDecoder;
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use pulldown_cmark::{Event, Parser, Tag};
 use tokio_stream::*;
 use tokio_tar::Archive;
-
+use axum_typed_multipart::TypedMultipart;
 use super::errors;
 use axum::extract::{multipart, Multipart, Path, Query, State};
 use axum::http::StatusCode;
@@ -22,9 +23,9 @@ use lazy_static::lazy_static;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use sqlx::query;
-use std::env;
+use std::{env};
 use std::path::PathBuf;
-use tokio::fs::File;
+use tokio::fs::{ File, OpenOptions };
 use tokio::io::{self, AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::stream::*;
 
@@ -47,11 +48,14 @@ async fn edit_md_relative_urls(fd: String, url: String) {
     }
     let mut file = File::create(&fd).await.unwrap();
     file.write_all(&content.into_bytes()).await.unwrap();
-    file.flush().await.unwrap();
+    file.flush().await.unwrap(); // WHAT THE FUCK!!!! I SPENT 10 HOURS BECAUSE OF THIS FUCKING LINE!!! AHAHAHAHH
 }
 
 /// XXX: DANGEROUS CODE!
-pub async fn delete_deprecated_files(article_old_name: &str) -> Result<(), errors::ArticleFsError> {
+pub async fn delete_deprecated_files<T>(article_old_name: &T) -> Result<(), errors::ArticleFsError>
+where T: AsRef<str> + ?Sized
+{
+    let article_old_name = article_old_name.as_ref();
     let path = format!("{}/{}", *ARTICLES_PATH, article_old_name);
     let res = tokio::fs::remove_dir_all(&path).await;
 
@@ -69,66 +73,68 @@ pub async fn delete_deprecated_files(article_old_name: &str) -> Result<(), error
 
 
 /// Gets .tar.gz binary and writes it to server
-pub async fn get_tar_gzip(article_name: &str, data: &Vec<u8>) -> Result<File, Json<Value>> {
+pub async fn get_tar_gzip<T>(article_name: &T, data: Bytes) -> Result<(), Json<Value>>
+where T: AsRef<str> + ?Sized
+{
+    let article_name = article_name.as_ref();
+
     let path = PathBuf::from(format!("{env}/{article_name}/", env = *ARTICLES_PATH));
     let mut path_name = path.clone();
     path_name.push(&article_name);
 
-
-    tokio::fs::create_dir_all(&path)
+    tokio::fs::create_dir_all(path)
         .await
         .expect("Failed to create dirs!");
 
-    let mut archive = File::create(&path_name).await.unwrap();
+    let mut archive = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(&path_name).await.unwrap();
     // TODO: checksums?
     tracing::info!("Writing data to archieve...");
     // Corruption may occure there???
     archive
         .write_all(&data)
         .await
-        .expect("failed to write_all()!");
+        .unwrap();
 
-    Ok(archive)
+    archive.flush().await.unwrap();
+    Ok(())
 }
 
-pub async fn extract_tar_gzip(
-    article_name: &str,
-) -> Result<Json<Value>, Json<Value>> {
+pub async fn extract_tar_gzip<T>(
+    article_name: &T,
+) -> Result<Json<Value>, Json<Value>>
+where T: AsRef<str> + ?Sized
+{
+    let article_name = article_name.as_ref();
     let path = PathBuf::from(format!("{env}/{article_name}/", env = *ARTICLES_PATH));
     let mut path_name = path.clone();
     path_name.push(&article_name);
 
     tracing::info!("Extracting article...");
-    let probably_tar_gz = File::open(&path_name).await;
-    if let Ok(tar_gz) = probably_tar_gz {
-        let reader = BufReader::new(tar_gz);
+    let s = format!("{}/{article_name}", path.to_str().unwrap());
+    tracing::debug!("{}", &s);
+    let tar_gz = File::open(&s).await.unwrap();
 
-        let tar = GzipDecoder::new(reader);
-        let mut archive = Archive::new(tar).entries().unwrap();
-        // archive.unpack(&path).await.expect("failed to unpack");
-        // FIXME WTH IT'S PANICS
+    let reader = BufReader::new(tar_gz);
 
-        // BUG:
-        // Huge chance that it will panic there for no reason!
-        // Err(Custom { kind: UnexpectedEof, error: "unexpected end of file" })
-        while let Some(file) = archive.next().await {
-            let mut file = file.unwrap();
-            file.unpack_in(&path).await.unwrap();
-        }
-        tracing::info!("Successfully unpacked archive");
-    } else {
-        tracing::error!("Failed to unpack archive!");
-        // FIXME: do something with this shitty error handling xddd
-        return Err(Json(
-            json!({"success": false, "data": "Unable to upload non-gzip file!"}),
-        ));
+    let tar = GzipDecoder::new(reader);
+    let mut archive = Archive::new(tar).entries().unwrap();
+
+    while let Some(file) = archive.next().await {
+        let mut file = file.unwrap();
+        file.unpack_in(&path).await.unwrap();
     }
+    tracing::info!("Successfully unpacked archive");
+
     Ok(Json(json!({"success": true, "data": "unpacked!"})))
 }
 
-pub async fn handle_tar_gzip(article_name: &str, data: &Vec<u8>) -> Result<Json<Value>, Json<Value>> {
-    get_tar_gzip(article_name, data).await;
-    extract_tar_gzip(article_name).await?;
+pub async fn handle_tar_gzip(article_name: &str, data: Bytes) -> Result<Json<Value>, Json<Value>> {
+    let _ = get_tar_gzip(article_name, data).await?;
+    let _ = extract_tar_gzip(article_name).await?;
     Ok(Json(json!({"success": true, "data": "Ok"})))
 }
 
@@ -136,18 +142,37 @@ pub async fn handle_tar_gzip(article_name: &str, data: &Vec<u8>) -> Result<Json<
 /// Request: Title, Base64 tar.gz
 /// Response:  Json(Success/Not)
 /// FIXME: Strange error handling and unwraps!
+/// SUGGESTIONS: This error may occur when directory exists
+/// in fs. Because when im trynna create already existing article it's gives me this issue
 pub async fn create_article(
     State(pool): State<AppState>,
-    Json(payload): Json<CreateArticle>,
+    TypedMultipart(UploadArticleRequest { title, archive }): TypedMultipart<UploadArticleRequest>
 ) -> Result<Json<Value>, Json<Value>> {
-    tracing::info!("Creating article with name: {}!", &payload.title);
+
+    let title = &title.replace(" ", "_");
+
+    tracing::debug!("{}", title);
+
+    // check on existance
+    let query = sqlx::query!(
+        "SELECT * FROM articles WHERE title=$1",
+        title
+    )
+        .fetch_one(&pool.pool)
+        .await;
+
+    tracing::debug!("{:?}",query);
+    if let Ok(_) = query {
+        return Err(Json(json!({"success": false, "data": "Article already exist!"})));
+    }
+
+    tracing::info!("Creating article with name: {}!", &title);
     //FIXME: Need handle title is some
     // .replace(" ", "_") - everywhere, wtf??
 
-    let title = &payload.title.replace(" ", "_");
-    let _ = handle_tar_gzip(title, &payload.archive).await?;
+    let _ = handle_tar_gzip(title, archive.contents).await?;
 
-    let absolute_url = format!("{w}/{t}/", w = *WEB_ARTICLES_URL, t = title);
+    let absolute_url = format!("{w}/{t}", w = *WEB_ARTICLES_URL, t = title);
     let md_path = format!("{}/main.md", absolute_url);
     let md_path_fs = format!(
         "{env}/{article_name}/main.md",
@@ -172,9 +197,8 @@ pub async fn create_article(
         return Err(Json(json!({"success": false, "data": "Database issue!"})));
     }
 
-    let response = json!({"success": true, "data": "Created!"});
-    tracing::info!("Successfully uploaded article: {}", &payload.title);
-    Ok(Json(response))
+    tracing::info!("Successfully uploaded article: {}", &title);
+    Ok(Json(json!({"success": true, "data": "Created!"})))
 }
 
 /// Handler that implements read funcitonality
@@ -254,29 +278,25 @@ pub async fn read_article_exact(
 /// FIXME: What to do when we want to update?
 /// BUG! TESTME!
 /// hard coded trash
+/// When i updating with the same tar.gz it's causes this error
 pub async fn update_article(
     State(pool): State<AppState>,
-    Json(payload): Json<UpdateArticle>,
+    TypedMultipart(UpdateArticleRequest { title, new_title, archive }): TypedMultipart<UpdateArticleRequest>
 ) -> Result<Json<Value>, Json<Value>> {
-    let title = &payload.title.replace(" ", "_");
-    let new_title;
-    if let Some(nt) = &payload.new_title {
-        new_title = nt.replace(" ", "_");
-    } else {
-        new_title = title.to_string();
-    }
+    let title = title.replace(" ", "_").to_string();
+    let updated_title = new_title.clone().unwrap_or(title.clone()).replace(" ", "_");
 
     let article_dir_old = format!("{}/{}", *ARTICLES_PATH, title);
-    let article_dir_new = format!("{}/{}", *ARTICLES_PATH, new_title);
+    let article_dir_new = format!("{}/{}", *ARTICLES_PATH, updated_title);
 
-
+    // FIXME: spooky if elsing. Trash.
     // If user scend new .tar.gz
-    if let Some(content) = &payload.archive {
-        // If we scend content on update then it's
+    if let Some(content) = archive {
+        // If we send content on update then it's
         // obvious that we had content before,
         // so it's okay to delete old files and
         // throw error if there no such files.
-        if let Ok(_) = delete_deprecated_files(title).await {
+        if let Ok(_) = delete_deprecated_files(&title).await {
             tracing::info!("Deleted deprecated files");
         } else {
             tracing::error!("Failed to deleted deprecated files");
@@ -286,11 +306,11 @@ pub async fn update_article(
         }
 
         // Then we just extract our gzip!
-        let _ = handle_tar_gzip(&new_title, content).await?;
+        let _ = handle_tar_gzip(&updated_title, content.contents).await?;
     } else {
         // Else if there only tile been send we can just update
         // directory name and db record!
-        if let Some(_) = &payload.new_title {
+        if let Some(_) = new_title {
                         println!("{}, {}", article_dir_old, article_dir_new);
             // FIXME: article_dir_new already exists => Fail
             tokio::fs::rename(article_dir_old, article_dir_new)
@@ -302,13 +322,11 @@ pub async fn update_article(
     }
 
 
-    // This code looks awful
-    // FIXME:
-    let article_url_new = format!("{}/{}", *WEB_ARTICLES_URL, new_title);
+    let article_url_new = format!("{}/{}", *WEB_ARTICLES_URL, updated_title);
     let content = format!("{}/main.md", article_url_new);
     let query = sqlx::query!(
         "UPDATE articles SET title = $1, content = $2 WHERE title = $3",
-        new_title,
+        updated_title,
         content,
         title
     )
@@ -367,17 +385,3 @@ pub async fn delete_article(
         }
     }
 }
-
-/*
-async fn read_article() -> Response {
-    todo!()
-}
-
-async fn update_article() -> Response {
-    todo!()
-}
-
-async fn delete_article() -> Response {
-    todo!()
-}
-*/
