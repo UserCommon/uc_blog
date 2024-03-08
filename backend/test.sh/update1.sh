@@ -1,3 +1,5 @@
-curl -X PUT -v localhost:3000/api/update \
-	--header 'Content-Type: application/json' \
-	--data '{"title": "Censored", "id": 8}'
+# Editing content
+(echo -n '{"title": "Writing hello world in rust!", "content": "'; base64 hello_world_in_rust_fixed.tar.gz; echo '"}') |
+
+curl -X PUT -H 'Content-Type: application/json' \
+	-d @- localhost:3000/api/update

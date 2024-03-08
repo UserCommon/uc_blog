@@ -1970,6 +1970,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2047c6ded9c721764247e62cd3b03c09ffc529b2ba5b10ec482ae507a4a70160"
 
 [[package]]
+name = "tar"
+version = "0.4.40"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b16afcea1f22891c49a00c751c7b63b2233284064f11a200fc624137c51e2ddb"
+dependencies = [
+ "filetime",
+ "libc",
+ "xattr",
+]
+
+[[package]]
 name = "tempfile"
 version = "3.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2232,10 +2243,12 @@ dependencies = [
  "axum",
  "base64 0.22.0",
  "chrono",
+ "lazy_static",
  "pulldown-cmark",
  "serde",
  "serde_json",
  "sqlx",
+ "tar",
  "tokio",
  "tokio-stream",
  "tokio-tar",

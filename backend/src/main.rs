@@ -22,18 +22,18 @@
 //! **Important** that your markdown file must have main.md name
 //! and all of your links in markdown has relative path!
 
-use std::env;
 use axum::ServiceExt;
 use axum::{routing::get, Router};
 use sqlx::sqlite::{SqlitePool, SqlitePoolOptions};
+use std::env;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+mod utils;
 mod handlers;
 mod models;
 use handlers::*;
-
 
 #[derive(Clone)]
 struct AppState {
@@ -41,7 +41,10 @@ struct AppState {
 }
 
 fn serve_dir() -> Router {
-    Router::new().nest_service("/articles", ServeDir::new(env::var("ARTICLES").expect("No ARTICLES env var")))
+    Router::new().nest_service(
+        "/articles",
+        ServeDir::new(env::var("ARTICLES").expect("No ARTICLES env var")),
+    )
 }
 
 #[tokio::main]
@@ -66,7 +69,8 @@ async fn main() {
         .await
         .expect("failed to run migrations!");
     let articles_path = env::var("ARTICLES").expect("No ARTICLES env var");
-    let serve_dir = ServeDir::new(&articles_path).not_found_service(ServeFile::new(format!("{}/not_found.md", &articles_path)));
+    let serve_dir = ServeDir::new(&articles_path)
+        .not_found_service(ServeFile::new(format!("{}/not_found.md", &articles_path)));
     let state = AppState { pool };
     let cors = CorsLayer::new().allow_origin(Any);
     // build our application with a single route

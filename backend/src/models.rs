@@ -6,16 +6,15 @@ use sqlx::FromRow;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateArticle {
     pub title: String,
-    pub content: String,
+    pub archive: Vec<u8>,
 }
-
 
 /// Content is base64 binary
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateArticle {
-    pub id: i64,
     pub title: String,
-    pub content: Option<String>
+    pub new_title: Option<String>,
+    pub archive: Option<Vec<u8>>,
 }
 
 /// Content is url
@@ -43,4 +42,9 @@ pub struct ArticleListPagination {
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub struct ObjectById {
     pub id: Option<u32>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ObjectByTitle {
+    pub title: String,
 }

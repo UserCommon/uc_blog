@@ -6,6 +6,7 @@ use serde_json::{json, Value};
 use crate::AppState;
 
 mod articles;
+mod errors;
 
 pub fn api_router() -> Router<AppState> {
     Router::<AppState>::new()
@@ -13,7 +14,7 @@ pub fn api_router() -> Router<AppState> {
         .route("/create", post(articles::create_article))
         .route("/get", get(articles::read_article_list))
         .route("/get/:title", get(articles::read_article_exact))
-        .route("/delete", delete(articles::delete_article))
+        .route("/delete/:title", delete(articles::delete_article))
         .route("/update", put(articles::update_article))
 }
 
