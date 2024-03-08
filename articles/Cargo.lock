@@ -2357,7 +2357,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f720def6ce1ee2fc44d40ac9ed6d3a59c361c80a75a7aa8e75bb9baed31cf2ea"
 
 [[package]]
-name = "uc_blog"
+name = "uc_blog_articles"
 version = "0.1.0"
 dependencies = [
  "async-compression",

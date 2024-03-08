@@ -15,7 +15,7 @@ pkgs.mkShell {
     shellHook = ''
         echo "<3"
         set -a
-        source backend/.env
+        source ./articles/.env
         set +a
     '';
 }

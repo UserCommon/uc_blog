@@ -1,5 +1,5 @@
 [package]
-name = "uc_blog"
+name = "uc_blog_articles"
 version = "0.1.0"
 edition = "2021"
 
