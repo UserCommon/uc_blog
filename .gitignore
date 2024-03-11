@@ -1,2 +1,3 @@
 articles/target/*
+gateway/target/*
 /.direnv/
