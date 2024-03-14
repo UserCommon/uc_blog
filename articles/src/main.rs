@@ -22,14 +22,14 @@
 //! **Important** that your markdown file must have main.md name
 //! and all of your links in markdown has relative path!
 
-use axum::ServiceExt;
-use axum::{routing::get, Router};
+use axum::{routing::get, Router, extract::Request, ServiceExt};
 use sqlx::sqlite::{SqlitePool, SqlitePoolOptions};
 use std::env;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-
+use tower::Layer;
+use tower_http::normalize_path::NormalizePathLayer;
 mod utils;
 mod handlers;
 mod models;
@@ -38,13 +38,6 @@ use handlers::*;
 #[derive(Clone)]
 struct AppState {
     pub pool: sqlx::SqlitePool,
-}
-
-fn serve_dir() -> Router {
-    Router::new().nest_service(
-        "/articles",
-        ServeDir::new(env::var("ARTICLES").expect("No ARTICLES env var")),
-    )
 }
 
 #[tokio::main]
@@ -79,9 +72,10 @@ async fn main() {
         .nest_service("/articles", serve_dir.clone())
         .nest("/api", api_router())
         .with_state(state);
+    let app = NormalizePathLayer::trim_trailing_slash().layer(app);
 
     // run our app with hyper, listening globally on port 3000
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     tracing::debug!("Listening on {}", "localhost");
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, ServiceExt::<Request>::into_make_service(app)).await.unwrap();
 }

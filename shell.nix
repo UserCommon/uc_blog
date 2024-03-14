@@ -16,6 +16,7 @@ pkgs.mkShell {
         echo "<3"
         set -a
         source ./articles/.env
+        source ./proxy/.env
         set +a
     '';
 }

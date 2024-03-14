@@ -1,11 +1,17 @@
 version: "3.8"
 services:
-  backend:
+  articles:
     image: articles
     build: ./articles
     restart: always
-    ports:
-      - "3000:3000"
     volumes:
       - ./articles/db:/app/db/
       - ./articles/articles:/app/articles
+  proxy:
+    image: proxy
+    build: ./proxy
+    restart: always
+    ports:
+      - "3001:3001"
+    depends_on:
+      - articles
