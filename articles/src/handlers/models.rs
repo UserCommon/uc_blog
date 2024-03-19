@@ -1,17 +1,14 @@
+use axum::body::Bytes;
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use axum::body::Bytes;
 
-
-/// Content is base64 binary
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateArticle {
     pub title: String,
     pub archive: Vec<u8>,
 }
 
-/// Content is base64 binary
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateArticle {
     pub title: String,
@@ -24,6 +21,7 @@ pub struct UpdateArticle {
 pub struct Article {
     pub id: i64,
     pub title: String,
+    pub slug: String,
     pub content: String,
     pub created_at: NaiveDateTime,
 }
@@ -51,21 +49,18 @@ pub struct ObjectByTitle {
     pub title: String,
 }
 
-
 // MULTIPART
-use axum_typed_multipart::{TryFromMultipart, TypedMultipart, FieldData};
-
+use axum_typed_multipart::{FieldData, TryFromMultipart};
 
 #[derive(TryFromMultipart)]
 pub struct UploadArticleRequest {
     pub title: String,
-    pub archive: FieldData<Bytes>
+    pub archive: FieldData<Bytes>,
 }
-
 
 #[derive(TryFromMultipart)]
 pub struct UpdateArticleRequest {
     pub title: String,
     pub new_title: Option<String>,
-    pub archive: Option<FieldData<Bytes>>
+    pub archive: Option<FieldData<Bytes>>,
 }

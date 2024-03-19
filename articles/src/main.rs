@@ -22,17 +22,15 @@
 //! **Important** that your markdown file must have main.md name
 //! and all of your links in markdown has relative path!
 
-use axum::{routing::get, Router, extract::Request, ServiceExt};
-use sqlx::sqlite::{SqlitePool, SqlitePoolOptions};
+use axum::{extract::Request, Router, ServiceExt};
+use sqlx::sqlite::SqlitePoolOptions;
 use std::env;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
 use tower::Layer;
 use tower_http::normalize_path::NormalizePathLayer;
-mod utils;
 mod handlers;
-mod models;
 use handlers::*;
 
 #[derive(Clone)]
@@ -77,5 +75,7 @@ async fn main() {
     // run our app with hyper, listening globally on port 3000
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     tracing::debug!("Listening on {}", "localhost");
-    axum::serve(listener, ServiceExt::<Request>::into_make_service(app)).await.unwrap();
+    axum::serve(listener, ServiceExt::<Request>::into_make_service(app))
+        .await
+        .unwrap();
 }

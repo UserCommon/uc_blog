@@ -1,4 +1,3 @@
-use axum::extract::State;
 use axum::response::Json;
 use axum::routing::{delete, get, post, put, Router};
 use serde_json::{json, Value};
@@ -7,6 +6,7 @@ use crate::AppState;
 
 mod articles;
 mod errors;
+mod models;
 
 pub fn api_router() -> Router<AppState> {
     Router::<AppState>::new()
