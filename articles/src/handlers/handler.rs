@@ -1,147 +1,21 @@
 //! TODO: Result<Json, Json> -> Result<Model, Model>...
-
+// TODO: ERRORS AS RESPONSES!
 use crate::AppState;
 
-use super::models::{Article, ArticleListPagination, UpdateArticleRequest, UploadArticleRequest};
+use super::error::*;
+use super::model::*;
+use super::response::*;
+use super::util::*;
 
-use super::errors::*;
+use std::env;
 
-use async_compression::tokio::bufread::GzipDecoder;
-use axum::body::Bytes;
 use axum::extract::{Path, Query, State};
 use axum::response::Json;
 use axum_typed_multipart::TypedMultipart;
-use tokio_stream::*;
-use tokio_tar::Archive;
-
-use lazy_static::lazy_static;
 
 use serde_json::{json, Value};
 
-use std::env;
-use std::path::PathBuf;
-use tokio::fs::{File, OpenOptions};
-use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader};
-
-lazy_static! {
-    static ref ARTICLES_PATH: String = env::var("ARTICLES").expect("No ARTICLES env var was found");
-    static ref WEB_URL: String = format!(
-        "{p}://{d}",
-        p = env::var("PROTOCOL").expect("No PROTOCOL env var was found"),
-        d = env::var("DOMAIN").expect("No DOMAIN env var was found")
-    );
-    static ref WEB_ARTICLES_URL: String = format!("{}/articles", *WEB_URL);
-}
-
-async fn edit_md_relative_urls(fd: String, url: String) {
-    let mut content = String::new();
-    {
-        let mut file = File::open(&fd).await.unwrap();
-        file.read_to_string(&mut content).await.unwrap();
-        content = content.replace("](./imgs/", &format!("]({}imgs/", url));
-    }
-    let mut file = File::create(&fd).await.unwrap();
-    file.write_all(&content.into_bytes()).await.unwrap();
-    file.flush().await.unwrap(); // WHAT THE FUCK!!!! I SPENT 10 HOURS BECAUSE OF THIS FUCKING LINE!!! AHAHAHAHH
-}
-
-/// XXX: DANGEROUS CODE!
-pub async fn delete_deprecated_files<T>(article_old_name: &T) -> Result<(), ArticleError>
-where
-    T: AsRef<str> + ?Sized,
-{
-    let article_old_name = article_old_name.as_ref();
-    let path = format!("{}/{}", *ARTICLES_PATH, article_old_name);
-    let res = tokio::fs::remove_dir_all(&path).await;
-
-    match res {
-        Ok(_) => {
-            tracing::info!("Deleted {}", article_old_name);
-            Ok(())
-        }
-        Err(e) => {
-            tracing::error!("Failed to delete {} with error: {}", &path, e);
-            Err(ArticleError::Delete(
-                "Failed to delete deprecated files!".into(),
-            ))
-        }
-    }
-}
-
-/// Gets .tar.gz binary and writes it to server
-pub async fn get_tar_gzip<T>(article_name: &T, data: Bytes) -> Result<(), ArticleError>
-where
-    T: AsRef<str> + ?Sized,
-{
-    let article_name = article_name.as_ref();
-
-    let path = PathBuf::from(format!("{env}/{article_name}/", env = *ARTICLES_PATH));
-    let mut path_name = path.clone();
-    path_name.push(article_name);
-
-    if let Err(e) = tokio::fs::create_dir_all(path).await {
-        tracing::error!("failed to create dir in *get_tar_gzip*: {}", e);
-        return Err(ArticleError::Create("Server issue".into()));
-    }
-
-    let archive_unchecked = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .open(&path_name)
-        .await;
-
-    let mut archive = match archive_unchecked {
-        Ok(s) => s,
-        Err(e) => {
-            tracing::error!("failed to write into archive dir in *get_tar_gzip*: {}", e);
-            return Err(ArticleError::Create("Server issue".into()));
-        }
-    };
-
-    tracing::info!("Writing data to archieve...");
-    if let Err(e) = archive.write_all(&data).await {
-        tracing::error!("failed to write into archive dir in *get_tar_gzip*: {}", e);
-        return Err(ArticleError::Create("Server issue".into()));
-    }
-
-    archive.flush().await.unwrap();
-    Ok(())
-}
-
-pub async fn extract_tar_gzip<T>(article_name: &T) -> Result<Json<Value>, ArticleError>
-where
-    T: AsRef<str> + ?Sized,
-{
-    let article_name = article_name.as_ref();
-    let path = PathBuf::from(format!("{env}/{article_name}/", env = *ARTICLES_PATH));
-    let mut path_name = path.clone();
-    path_name.push(article_name);
-
-    tracing::info!("Extracting article...");
-    let s = format!("{}/{article_name}", path.to_str().unwrap());
-    tracing::debug!("{}", &s);
-    let tar_gz = File::open(&s).await.unwrap();
-
-    let reader = BufReader::new(tar_gz);
-
-    let tar = GzipDecoder::new(reader);
-    let mut archive = Archive::new(tar).entries().unwrap();
-
-    while let Some(file) = archive.next().await {
-        let mut file = file.unwrap();
-        file.unpack_in(&path).await.unwrap();
-    }
-    tracing::info!("Successfully unpacked archive");
-
-    Ok(Json(json!({"success": true, "data": "unpacked!"})))
-}
-
-pub async fn handle_tar_gzip(article_name: &str, data: Bytes) -> Result<Json<Value>, ArticleError> {
-    get_tar_gzip(article_name, data).await?;
-    let _ = extract_tar_gzip(article_name).await?;
-    Ok(Json(json!({"success": true, "data": "Ok"})))
-}
+use super::consts::*;
 
 /// Handler for creating
 /// Request: Title, tar.gz
@@ -150,8 +24,8 @@ pub async fn handle_tar_gzip(article_name: &str, data: Bytes) -> Result<Json<Val
 /// in fs. Because when im trynna create already existing article it's gives me this issue
 pub async fn create_article(
     State(pool): State<AppState>,
-    TypedMultipart(UploadArticleRequest { title, archive }): TypedMultipart<UploadArticleRequest>,
-) -> Result<Json<Value>, ArticleError> {
+    TypedMultipart(CreateArticleRequest { title, archive }): TypedMultipart<CreateArticleRequest>,
+) -> Result<Json<CreateArticleResponse>, ArticleError> {
     let slug = &title.replace(' ', "_");
     tracing::info!("Creating article with title: {}!", &title);
 
@@ -192,8 +66,12 @@ pub async fn create_article(
         return Err(ArticleError::Create("Database error".to_string()));
     }
 
-    tracing::info!("Successfully uploaded article: {}", &title);
-    Ok(Json(json!({"success": true, "data": "Created!"})))
+    tracing::info!("Created article: {}", &title);
+    Ok(Json(CreateArticleResponse {
+        status: "success".to_string(),
+        message: Some("created".to_string()),
+        data: None,
+    }))
 }
 
 /// Handler that implements read funcitonality
@@ -205,10 +83,10 @@ pub async fn create_article(
 ///     "content": "http:/.../articles/Article.md"
 ///     "created_at": 2024
 /// }
-pub async fn read_article_list(
+pub async fn read_articles(
     Query(pagination): Query<ArticleListPagination>,
     State(pool): State<AppState>,
-) -> Result<Json<Vec<Article>>, ArticleError> {
+) -> Result<Json<ReadArticlesResponse>, ArticleError> {
     //              Uint getting negative value
     tracing::info!("Reading article!");
     let query = match pagination.page {
@@ -234,7 +112,14 @@ pub async fn read_article_list(
     };
 
     match query {
-        Ok(v) => Ok(Json(v)),
+        Ok(data) => {
+            tracing::info!("Read articles.");
+            Ok(Json(ReadArticlesResponse {
+                status: "success".into(),
+                message: Some("Read articles!".into()),
+                data: Some(data),
+            }))
+        }
         Err(e) => {
             tracing::error!("Failed to read! {}", e);
             Err(ArticleError::Read("No such objects.".into()))
@@ -243,18 +128,25 @@ pub async fn read_article_list(
 }
 
 /// Handler for reading exact article
-pub async fn read_article_exact(
+pub async fn read_article(
     Path(title): Path<String>,
     State(pool): State<AppState>,
-) -> Result<Json<Article>, ArticleError> {
-    let slug = title.replace(' ', "_"); // hard-coded
+) -> Result<Json<ReadArticleResponse>, ArticleError> {
+    let slug = title.replace(' ', "_"); // hard-coded FIXME:
     tracing::info!("Reading exact article!");
     let query = sqlx::query_as!(Article, "SELECT * FROM articles WHERE slug = $1", slug)
         .fetch_one(&pool.pool)
         .await;
 
     match query {
-        Ok(article) => Ok(Json(article)),
+        Ok(data) => {
+            tracing::info!("Read article. title: {}", title);
+            Ok(Json(ReadArticleResponse {
+                status: "success".into(),
+                message: Some("Read article!".into()),
+                data: Some(data),
+            }))
+        }
         Err(e) => {
             tracing::error!("Failed to get article from db!: {:?}", e);
             Err(ArticleError::Read("Failed to read this article".into()))
@@ -274,7 +166,7 @@ pub async fn update_article(
         new_title,
         archive,
     }): TypedMultipart<UpdateArticleRequest>,
-) -> Result<Json<Value>, ArticleError> {
+) -> Result<Json<UpdateArticleResponse>, ArticleError> {
     let slug = title.replace(' ', "_").to_string();
     let updated_slug = new_title.clone().unwrap_or(title.clone()).replace(' ', "_");
 
@@ -318,9 +210,16 @@ pub async fn update_article(
     .await;
 
     match query {
-        Ok(_) => Ok(Json(json!({"success": true, "data": "Updated!"}))),
+        Ok(_) => {
+            tracing::info!("Updated article. new titile: {}", new_title);
+            Ok(Json(UpdateArticleResponse {
+                status: "success".into(),
+                message: Some("Updated!".into()),
+                data: None,
+            }))
+        }
         Err(e) => {
-            tracing::error!("Failed to execute query, error: {e}");
+            tracing::error!("Failed to execute query, error: {}", e);
             Err(ArticleError::Update("Failed to update article".into()))
         }
     }
@@ -330,13 +229,14 @@ pub async fn update_article(
 pub async fn delete_article(
     Path(title): Path<String>,
     State(pool): State<AppState>,
-) -> Result<Json<Value>, ArticleError> {
-    let slug = title.replace(' ', "_");
+) -> Result<Json<DeleteArticleResponse>, ArticleError> {
+    tracing::info!("Delete article. title: {}", &title);
+    // FIXME: REMOVE ALL SPEC SYMBOLS!!
+    let slug = title.replace(" ", "_");
 
     if let Err(e) = delete_deprecated_files(&slug).await {
         tracing::error!("Failed to delete files!, {}", e);
     }
-
 
     let query = sqlx::query_as!(
         Article,
@@ -348,11 +248,13 @@ pub async fn delete_article(
     )
     .execute(&pool.pool)
     .await;
-
+    //json!({"success": true, "data": format!("deleted article :{}", &title)}),
     match query {
-        Ok(_) => Ok(Json(
-            json!({"success": true, "data": format!("deleted article :{}", &title)}),
-        )),
+        Ok(_) => Ok(Json(DeleteArticleResponse {
+            status: "success".into(),
+            message: Some("Deleted article".into()),
+            data: None,
+        })),
         Err(e) => {
             tracing::error!("Failed to execute a query! error: {e}");
             Err(ArticleError::Delete("Failed to delete article".into()))

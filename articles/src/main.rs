@@ -62,19 +62,20 @@ async fn main() {
     let articles_path = env::var("ARTICLES").expect("No ARTICLES env var");
     let serve_dir = ServeDir::new(&articles_path)
         .not_found_service(ServeFile::new(format!("{}/not_found.md", &articles_path)));
+
     let state = AppState { pool };
     let cors = CorsLayer::new().allow_origin(Any);
     // build our application with a single route
     let app = Router::new()
         .layer(cors)
         .nest_service("/articles", serve_dir.clone())
-        .nest("/api", api_router())
+        .nest("/api/v1/articles", api_router())
         .with_state(state);
     let app = NormalizePathLayer::trim_trailing_slash().layer(app);
 
     // run our app with hyper, listening globally on port 3000
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    tracing::debug!("Listening on {}", "localhost");
+    tracing::debug!("Listening on {}, Port: {}", "localhost", "3000");
     axum::serve(listener, ServiceExt::<Request>::into_make_service(app))
         .await
         .unwrap();

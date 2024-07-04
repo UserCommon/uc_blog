@@ -1,3 +1,5 @@
+// TODO: ERRORS AS RESPONSES!
+
 use std::fmt;
 
 use axum::response::{IntoResponse, Json, Response};
@@ -24,10 +26,11 @@ impl fmt::Display for ArticleError {
 }
 
 impl IntoResponse for ArticleError {
+    // FIXME: Huh?
     fn into_response(self) -> Response {
         Json(json!({
-            "success": false,
-            "error": self.to_string()
+            "status": "error",
+            "message": self.to_string()
         }))
         .into_response()
     }

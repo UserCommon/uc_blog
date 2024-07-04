@@ -5,4 +5,4 @@
 # 	-d @- localhost:3000/api/update
 
 
-curl -X PUT -F title="Hey, It's working1!" -F archive=@hello_world.tar.gz localhost:3000/api/update
+curl -X PUT -F title="Hey, It's working1!" -F archive=@hello_world.tar.gz localhost:3000/api/v1/article/update

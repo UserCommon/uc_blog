@@ -14,7 +14,7 @@
 
 
 
-curl -X PUT -F title="Hey!!!!" -F new_title="Hey!!!!!" localhost:3000/api/update
+curl -X PUT -F title="Hey!!!!" -F new_title="Hey!!!!!" localhost:3000/api/v1/article
 # Editiing Content
 
 # Editing Content AND Title

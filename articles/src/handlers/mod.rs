@@ -1,23 +1,34 @@
-use axum::response::Json;
-use axum::routing::{delete, get, post, put, Router};
-use serde_json::{json, Value};
-
 use crate::AppState;
+use axum::routing::{delete, get, post, put, Router};
 
-mod articles;
-mod errors;
-mod models;
+mod error;
+mod handler;
+mod model;
+mod response;
+mod util;
 
-pub fn api_router() -> Router<AppState> {
-    Router::<AppState>::new()
-        .route("/", get(root))
-        .route("/create", post(articles::create_article))
-        .route("/get", get(articles::read_article_list))
-        .route("/get/:title", get(articles::read_article_exact))
-        .route("/delete/:title", delete(articles::delete_article))
-        .route("/update", put(articles::update_article))
+mod consts {
+    use lazy_static::lazy_static;
+    use std::env;
+
+    lazy_static! {
+        pub(crate) static ref ARTICLES_PATH: String =
+            env::var("ARTICLES").expect("No ARTICLES env var was found");
+        pub(crate) static ref WEB_URL: String = format!(
+            "{p}://{d}",
+            p = env::var("PROTOCOL").expect("No PROTOCOL env var was found"),
+            d = env::var("DOMAIN").expect("No DOMAIN env var was found")
+        );
+        pub(crate) static ref WEB_ARTICLES_URL: String = format!("{}/articles", *WEB_URL);
+    }
 }
 
-pub async fn root() -> Json<Value> {
-    Json(json!({ "status": 200, "data": "Hello, you are currently at / " }))
+pub fn api_router() -> Router<AppState> {
+    use handler::*;
+    Router::<AppState>::new()
+        .route(
+            "/",
+            post(create_article).get(read_articles).put(update_article),
+        )
+        .route("/:title", get(read_article).delete(delete_article))
 }
