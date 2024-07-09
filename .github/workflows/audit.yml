@@ -7,10 +7,20 @@ on:
       - '**/Cargo.toml'
       - '**/Cargo.lock'
 jobs:
-  security_audit:
+  security_audit_articles:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: taiki-e/install-action@cargo-deny
       - name: Scan for vulnerabilities
+        working-directory: ${{ github.workspace }}/articles/
+        run: cargo deny check advisories
+
+  security_audit_proxy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: taiki-e/install-action@cargo-deny
+      - name: Scan for vulnerabilities
+        working-directory: ${{ github.workspace }}/proxy/
         run: cargo deny check advisories
