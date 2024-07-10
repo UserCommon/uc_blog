@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <title>UserCommon's Blog</title>
+  <!-- Required meta tags -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" type="text/css" href="bootstrap-5.3.1-dist/css/bootstrap.min.css">
+  <!-- Файлы из локальных папок не работают (мб их надо скомпилить) CSS работает по ссылке ниже -->
+  <link rel="stylesheet" type="text/css"
+    href="https://kristopolous.github.io/BOOTSTRA.386/v2.3.1/assets/css/bootstrap.css">
+  <link rel="stylesheet" type="text/css" href="css/style.css">
+</head>
+
+<body>
+  <img class="header-image" src="img/header-image.jpg">
+  <nav class="navbar navbar-dark navbar-expand-md bg-dark py-3">
+    <div class="container">
+      <div>
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item"><a class="nav-link active" href="#">Home</a></li>
+          <li class="nav-item"><a class="nav-link" href="#">About</a></li>
+          <li class="nav-item"><a class="nav-link" href="#">Articles</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+  <div class="block-container ext-container">
+    <div class="row">
+      <div class="col-xs-8 col-md-8">
+        <ul class="breadcrumb">
+          <li><a href="#">Home</a> <span class="divider">/</span></li>
+          <li class="active">Articles </li>
+        </ul>
+        <div class="bs-docs-example">
+          <div class="media lead row justify-content-between">
+            <div class="col-xs-8 col-md-4">
+              <a class="pull-left" href="#">
+                <img class="media-object" data-src="holder.js/64x64" alt="64x64"
+                  src="data:image/png;base64,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"
+                  style="width: 8em; height: 8em; ">
+                <br>
+              </a>
+            </div>
+            <div class="media-body col-xs-8 col-md-8">
+              <div class="article-preview-text">
+                <h2 class="article-preview-header">Decoding Cybersecurity: Essential Tips for Beginners</h2>
+                <hr><br>
+                Cras sit amet nibh libero, in gravida nulla. Nulla vel metus scelerisque ante sollicitudin commodo. Cras
+                purus odio, vestibulum in vulputate at, tempus viverra turpis. Fusce condimentum nunc ac nisi vulputate
+                fringilla. Donec lacinia congue felis in faucibus.
+              </div>
+            </div>
+          </div>
+          <div class="media lead row justify-content-between">
+            <div class="col-xs-8 col-md-4">
+              <a class="pull-left" href="#">
+                <img class="media-object" data-src="holder.js/64x64" alt="64x64"
+                  src="data:image/png;base64,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"
+                  style="width: 8em; height: 8em; ">
+                <br>
+              </a>
+            </div>
+            <div class="media-body col-xs-8 col-md-8">
+              <div class="article-preview-text">
+                <h2 class="article-preview-header">Mastering Cloud Computing: A Comprehensive Guide</h2>
+                <hr><br>
+                Cras sit amet nibh libero, in gravida nulla. Nulla vel metus scelerisque ante sollicitudin commodo. Cras
+                purus odio, vestibulum in vulputate at, tempus viverra turpis. Fusce condimentum nunc ac nisi vulputate
+                fringilla. Donec lacinia congue felis in faucibus.
+              </div>
+            </div>
+          </div>
+          <div class="media lead row justify-content-between">
+            <div class="col-xs-8 col-md-4">
+              <a class="pull-left" href="#">
+                <img class="media-object" data-src="holder.js/64x64" alt="64x64"
+                  src="data:image/png;base64,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"
+                  style="width: 8em; height: 8em; ">
+                <br>
+              </a>
+            </div>
+            <div class="media-body col-xs-8 col-md-8">
+              <div class="article-preview-text">
+                <h2 class="article-preview-header">Article Header with Name: Developing Personal blog using Rust CRUD,
+                  MySQL over Bootstra.386, EXTENDED</h2>
+                <hr><br>
+                Cras sit amet nibh libero, in gravida nulla. Nulla vel metus scelerisque ante sollicitudin commodo. Cras
+                purus odio, vestibulum in vulputate at, tempus viverra turpis. Fusce condimentum nunc ac nisi vulputate
+                fringilla. Donec lacinia congue felis in faucibus.
+              </div>
+            </div>
+          </div>
+          <div class="media lead row justify-content-between">
+            <div class="col-xs-8 col-md-4">
+              <a class="pull-left" href="#">
+                <img class="media-object" data-src="holder.js/64x64" alt="64x64"
+                  src="data:image/png;base64,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"
+                  style="width: 8em; height: 8em; ">
+                <br>
+              </a>
+            </div>
+            <div class="media-body col-xs-8 col-md-8">
+              <div class="article-preview-text">
+                <h2 class="article-preview-header"> Privacy in the Digital Age: Protecting Your Information Online</h2>
+                <hr><br>
+                Cras sit amet nibh libero, in gravida nulla. Nulla vel metus scelerisque ante sollicitudin commodo. Cras
+                purus odio, vestibulum in vulputate at, tempus viverra turpis. Fusce condimentum nunc ac nisi vulputate
+                fringilla. Donec lacinia congue felis in faucibus.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-xs-8 col-md-4">
+        <div class="hero-unit">
+          <h1 class="article-header">ARTICLES</h1>
+          <p>Welcome to my personal blog, a space curated with the intention of sparking curiosity, igniting
+            conversations, and offering insights that resonate with the complexities of our shared human experience.
+            Here, we delve into the nuances of life, exploring everything from the profound to the mundane, with a touch
+            <br>
+            <input type="text" class="search-query" placeholder="Search">
+            <a class="btn btn-primary btn-large">
+              SEARCH
+            </a>
+        </div>
+      </div>
+    </div>
+    <div class="pagination">
+      <ul>
+        <li><a href="#">Prev</a></li>
+        <li><a href="#">1</a></li>
+        <li><a href="#">2</a></li>
+        <li><a href="#">3</a></li>
+        <li><a href="#">4</a></li>
+        <li><a href="#">5</a></li>
+        <li><a href="#">Next</a></li>
+      </ul>
+    </div>
+  </div>
+  <footer class="py-3 my-4 footer-main">
+    <p class="text-center text-muted">2024 made by <a href="https://plzdontcry.ru">plzd0dntcry©</a></p>
+    <hr>
+  </footer>
+  <img class="footer-image" src="img/footer-image.jpg">
+  <!-- Optional JavaScript -->
+  <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+  <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
+    integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo"
+    crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"
+    integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1"
+    crossorigin="anonymous"></script>
+  <script src="bootstrap-5.3.1-dist/js/bootstrap.js"></script>
+  <script>
+    // Example configuration
+    _386.fastLoad = true;
+    _386.onePass = true;
+    _386.speedFactor = 1.5;
+  </script>
+</body>
+
+</html>
